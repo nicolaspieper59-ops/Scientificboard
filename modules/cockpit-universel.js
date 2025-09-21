@@ -154,4 +154,10 @@ export function activate(container) {
   startGPS();
   setInterval(updateTemps, 10000);
                              }
+if (navigator.onLine) {
+  fetchMeteo(latitude, longitude); // API météo réelle
+} else {
+  // Affiche "mode hors ligne" pour météo
+}
+
     
