@@ -1,57 +1,184 @@
-<h2>Cockpit Universel</h2>
-<div id="controls">
-  <button id="toggle">🟢 Marche</button>
-  <button id="reset">♻️ Réinitialiser vitesse</button>
-</div>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cockpit Cosmique</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.png" />
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: radial-gradient(circle at center, #000011, #000000);
+      color: #ccc;
+      overflow-x: hidden;
+    }
+    h1 { text-align: center; margin-top: 1em; }
+    .halo { width: 200px; height: 200px; margin: auto; border-radius: 50%; background: radial-gradient(circle, cyan, transparent); animation: pulse 4s infinite; }
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.6; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); opacity: 0.6; }
+    }
+    #config-cosmique {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #111;
+      padding: 1em;
+      border-radius: 10px;
+      font-size: 0.9em;
+    }
+    canvas { display: block; margin: auto; background: #000; border: 1px solid #333; }
+    .module { margin: 1em auto; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>🌌 Cockpit Cosmique</h1>
+  <div class="halo"></div>
 
-<div id="cockpit-data">
-  <p id="vitesse-kmh">🚀 Vitesse : ...</p>
-  <p id="vitesse-max">📈 Max : ...</p>
-  <p id="vitesse-moy">📊 Moyenne : ...</p>
-  <p id="distance">📏 Distance : ...</p>
-  <hr />
-  <p id="altitude">🗻 Altitude : ...</p>
-  <p id="gps-precision">🎯 Précision : ...</p>
-  <p id="mode-souterrain">🕳️ Mode : ...</p>
-  <p id="heure-solaire">🌞 Heure solaire : ...</p>
-  <p id="temps-moyen">🧭 Temps moyen : ...</p>
-</div>
+  <div id="config-cosmique">
+    <h3>🎛️ Configuration</h3>
+    <label><input type="checkbox" id="toggle-magnetic" checked /> Magnétisme</label><br/>
+    <label><input type="checkbox" id="toggle-constellations" checked /> Constellations</label><br/>
+    <label><input type="range" id="theme-slider" min="0" max="1" step="1" /> Thème : Solaire / Lunaire</label><br/>
+    <button onclick="downloadHistory()">📤 Export JSON</button>
+  </div>
 
-<h2>Boussole & Orientation</h2>
-<p id="compass">🧭 Cap : ...°</p>
-<p id="target-bearing">🎯 Direction vers coordonnées : ...°</p>
-<p id="moon-bearing">🌕 Lune : ...°</p>
+  <div class="module" id="solar-local"></div>
+  <div class="module" id="solar-utc"></div>
+  <div class="module" id="vitesse-kmh"></div>
+  <div class="module" id="compass"></div>
+  <div class="module" id="bubble"></div>
+  <div class="module" id="light-lux"></div>
+  <div class="module" id="sound-db"></div>
+  <div class="module" id="sound-hz"></div>
+  <div class="module" id="magnetic"></div>
+  <div class="module" id="air"></div>
+  <div class="module" id="visibleConstellations"></div>
+  <div class="module" id="celestialTarget"></div>
+  <canvas id="orbit" width="300" height="300"></canvas>
 
-<h2>Niveau à bulle</h2>
-<p id="bubble-x">🫧 Inclinaison X : ...°</p>
-<p id="bubble-y">🫧 Inclinaison Y : ...°</p>
+  <audio src="audio/ambiance.mp3" autoplay loop></audio>
+  <audio src="audio/schumann.mp3" autoplay loop></audio>
 
-<h2>Temps solaire</h2>
-<p id="solar-local">🌞 Heure solaire locale : ...</p>
-<p id="solar-mean">🧭 Temps moyen UTC : ...</p>
-<p id="equation-time">📐 Équation du temps : ... s</p>
+  <script>
+    const el = {};
+    document.querySelectorAll('[id]').forEach(e => el[e.id] = e);
+    let lastPos = { latitude: 0, longitude: 0 };
+    let currentSpeed = 0, currentLight = 0, currentSound = 0, currentOrientation = { alpha: 0 };
+    const history = [];
 
-<h2>Événements célestes</h2>
-<p id="sunrise">🌅 Lever du soleil : ...</p>
-<p id="sunset">🌇 Coucher du soleil : ...</p>
-<p id="solar-noon">☀️ Culmination solaire : ...</p>
-<p id="moon-culmination">🌕 Culmination lunaire : ...</p>
-<p id="moon-phase">🌘 Phase de la lune : ...</p>
+    if ('geolocation' in navigator) {
+      navigator.geolocation.watchPosition(pos => {
+        const { latitude, longitude, speed } = pos.coords;
+        lastPos = { latitude, longitude };
+        currentSpeed = speed || 0;
+        el['vitesse-kmh'].textContent = `🚀 Vitesse : ${(currentSpeed * 3.6).toFixed(1)} km/h`;
+      });
+    }
 
-<h2>Météo & Atmosphère</h2>
-<p id="pressure">🌡️ Pression : ... hPa</p>
-<p id="temperature">🌡️ Température : ... °C</p>
-<p id="uv">☀️ Indice UV : ...</p>
-<p id="rain">🌧️ Pluie : ... mm</p>
-<p id="clouds">☁️ Couverture nuageuse : ...%</p>
+    window.addEventListener('deviceorientation', e => {
+      currentOrientation = e;
+      el.compass.textContent = `🧭 Boussole : ${e.alpha?.toFixed(1)}°`;
+      el.bubble.textContent = `🫧 Niveau : β=${e.beta?.toFixed(1)} γ=${e.gamma?.toFixed(1)}`;
+    });
 
-<h2>Physique & vibration</h2>
-<p id="gravity">🌍 Gravitation : ... g</p>
-<p id="speed-light">🚀 % lumière : ...%</p>
-<p id="speed-sound">🔊 % son : ...%</p>
-<p id="speed-mm">📏 Vitesse : ... mm/s</p>
+    if ('AmbientLightSensor' in window) {
+      try {
+        const light = new AmbientLightSensor();
+        light.addEventListener('reading', () => {
+          currentLight = light.illuminance;
+          el['light-lux'].textContent = `💡 Lumière : ${currentLight.toFixed(1)} lux`;
+        });
+        light.start();
+      } catch {}
+    }
 
-<h2>Son & Lumière</h2>
-<p id="sound-db">🔊 Son : ... dB</p>
-<p id="sound-hz">🎶 Fréquence : ... Hz</p>
-<p id="light-lux">💡 Lumière : ... lux</p>
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        const ctx = new AudioContext();
+        const analyser = ctx.createAnalyser();
+        const source = ctx.createMediaStreamSource(stream);
+        source.connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        setInterval(() => {
+          analyser.getByteFrequencyData(data);
+          const avg = data.reduce((a,b) => a + b, 0) / data.length;
+          el['sound-db'].textContent = `🔊 Son : ${avg.toFixed(1)} dB`;
+          el['sound-hz'].textContent = `🔊 Fréquence : ${data.indexOf(Math.max(...data))} Hz`;
+          currentSound = avg;
+        }, 1000);
+      });
+    }
+
+    if ('Magnetometer' in window) {
+      try {
+        const mag = new Magnetometer();
+        mag.addEventListener('reading', () => {
+          const total = Math.sqrt(mag.x**2 + mag.y**2 + mag.z**2);
+          el.magnetic.textContent = `🧲 Champ magnétique : ${total.toFixed(1)} µT`;
+        });
+        mag.start();
+      } catch {}
+    }
+
+    fetch('modules/constellations.json')
+      .then(res => res.json())
+      .then(CONSTELLATIONS => {
+        function updateConstellations() {
+          const now = new Date();
+          const hsl = (now.getUTCHours() + lastPos.longitude / 15) % 24;
+          const visible = CONSTELLATIONS.filter(c => Math.abs(c.ra - hsl) < 2).map(c => c.name);
+          el.visibleConstellations.textContent = `✨ Constellations visibles : ${visible.join(', ')}`;
+        }
+        setInterval(updateConstellations, 60000);
+      });
+
+    function updateAstronomie() {
+      const now = new Date();
+      const utc = now.getUTCHours() + now.getUTCMinutes()/60;
+      const solarLocal = utc + lastPos.longitude / 15;
+      el['solar-local'].textContent = `🌞 Heure solaire locale : ${solarLocal.toFixed(2)} h`;
+      el['solar-utc'].textContent = `🌞 Heure solaire UTC : ${utc.toFixed(2)} h`;
+    }
+    setInterval(updateAstronomie, 60000);
+
+    function updateCelestialNavigation() {
+      const azimut = 120;
+      const userAz = currentOrientation.alpha || 0;
+      const delta = Math.abs(userAz - azimut);
+      el.celestialTarget.textContent = `🧭 Orion à ${azimut}°, écart : ${delta.toFixed(1)}°`;
+    }
+    setInterval(updateCelestialNavigation, 3000);
+
+    function logGrandeurs() {
+      history.push({
+        time: new Date().toISOString(),
+        speed: currentSpeed,
+        light: currentLight,
+        sound: currentSound,
+        gps: lastPos
+      });
+    }
+    setInterval(logGrandeurs, 60000);
+
+    window.downloadHistory = () => {
+      const blob = new Blob([JSON.stringify(history)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'grandeurs-cosmiques.json';
+      a.click();
+    };
+
+    document.getElementById('toggle-magnetic').onchange = e => el.magnetic.style.display = e.target.checked ? 'block' : 'none';
+    document.getElementById('toggle-constellations').onchange = e => el.visibleConstellations.style.display = e.target.checked ? 'block' : 'none';
+    document.getElementById('theme-slider').oninput = e => document.body.classList.toggle('theme-lunaire', e.target.value == 1);
+
+    const ctx = document.getElementById('orbit').getContext('2d');
+    function drawOrbit() {
+      ctx.clearRect(0, 0, 300, 300);
+      ctx.beginPath();
+      ctx.arc(150,
