@@ -1,16 +1,15 @@
 {
   "name": "Cockpit Cosmique",
-  "short_name": "Cockpit",
+  "short_name": "Cosmos",
   "start_url": "cockpit-cosmique.html",
   "display": "standalone",
   "background_color": "#000000",
-  "theme_color": "#000011",
-  "description": "Interface cosmique multisensorielle, autonome et poétique",
+  "theme_color": "#111111",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "icon.svg",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/svg+xml"
     }
   ]
 }
