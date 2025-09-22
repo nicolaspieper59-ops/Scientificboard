@@ -129,4 +129,121 @@
     <!-- Journal -->
     <section class="card"><h3>📈 Historique</h3><div id="log"></div></section>
                                                            </main>
+  <script>
+  // 🧠 Bus d’événements
+  const Bus = (() => {
+    const map = new Map();
+    return {
+      on: (evt, cb) => (map.has(evt) ? map.get(evt).push(cb) : map.set(evt, [cb])),
+      emit: (evt, data) => (map.get(evt) || []).forEach(cb => cb(data))
+    };
+  })();
+
+  // ⚙️ Préférences
+  const Pref = {
+    get: (k, v = null) => JSON.parse(localStorage.getItem(k) ?? JSON.stringify(v)),
+    set: (k, v) => localStorage.setItem(k, JSON.stringify(v))
+  };
+
+  // 🌞 Calculs solaires
+  function toRad(x) { return x * Math.PI / 180 }
+  function julianDay(d) { return (d / 86400000) + 2440587.5 }
+  function solarNoonUTC(d, lon) {
+    const J = Math.floor(julianDay(d) - 0.5) + 0.5;
+    const n = Math.round(J - 2451545 - lon / 360);
+    const Jstar = 2451545 + n - lon / 360;
+    const M = toRad((357.5291 + 0.98560028 * (Jstar - 2451545)) % 360);
+    const C = 1.9148 * Math.sin(M) + 0.0200 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M);
+    const λ = toRad((280.1470 + 0.98564736 * (Jstar - 2451545) + C) % 360);
+    const Jtransit = Jstar + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * λ);
+    return (Jtransit - 2440587.5) * 86400000;
+  }
+  function sunriseSunset(d, lat, lon, angle = -0.83) {
+    const noonMs = solarNoonUTC(d, lon);
+    const noon = new Date(noonMs);
+    const δ = (() => {
+      const J = julianDay(noon);
+      const n = Math.round(J - 2451545 - lon / 360);
+      const M = toRad((357.5291 + 0.98560028 * n) % 360);
+      const C = 1.9148 * Math.sin(M) + 0.0200 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M);
+      const λ = toRad((280.1470 + 0.98564736 * n + C) % 360);
+      return Math.asin(Math.sin(λ) * Math.sin(toRad(23.44)));
+    })();
+    const ω = Math.acos(
+      (Math.sin(toRad(angle)) - Math.sin(toRad(lat)) * Math.sin(δ)) /
+      (Math.cos(toRad(lat)) * Math.cos(δ))
+    );
+    const dayLengthMs = (2 * ω * 180 / Math.PI) / 15 * 3600000;
+    return {
+      sunrise: new Date(noonMs - dayLengthMs / 2),
+      solarNoon: noon,
+      sunset: new Date(noonMs + dayLengthMs / 2)
+    };
+  }
+
+  // 🌙 Phase lunaire
+  function getPhaseLunaire() {
+    const jd = julianDay(Date.now());
+    const phase = ((jd - 2451550.1) / 29.53058867) % 1;
+    return phase < 0.25 ? 'nouvelle' : phase < 0.5 ? 'croissante' : phase < 0.75 ? 'pleine' : 'décroissante';
+  }
+
+  // 🧭 Cycle solaire/lunaire
+  function getCycleCosmique() {
+    const h = new Date().getHours();
+    return (h >= 6 && h < 18) ? 'solaire' : 'lunaire';
+  }
+
+  // 🕒 Mise à jour des badges
+  function updateCycleBadges() {
+    document.getElementById('cycleBadge').textContent = `cycle: ${getCycleCosmique()}`;
+    document.getElementById('phaseBadge').textContent = `lune: ${getPhaseLunaire()}`;
+  }
+  updateCycleBadges();
+
+  // 🔁 Moteur d’invocation automatique
+  let lastKeys = new Set();
+  async function getCtx() {
+    const now = new Date();
+    let lat = 43.3, lon = 5.4; // Marseille par défaut
+    try {
+      const pos = await new Promise(res => navigator.geolocation?.getCurrentPosition(
+        p => res(p), _ => res(null), { enableHighAccuracy: true, maximumAge: 60000, timeout: 3000 }
+      ));
+      if (pos) { lat = pos.coords.latitude; lon = pos.coords.longitude; }
+    } catch {}
+    const solar = sunriseSunset(now, lat, lon);
+    return { now, solar, lat, lon };
+  }
+
+  const Rules = {
+    lever: ctx => (ctx.now >= ctx.solar.sunrise && ctx.now - ctx.solar.sunrise < 5 * 60 * 1000),
+    zenith: ctx => Math.abs(ctx.now - ctx.solar.solarNoon) < 5 * 60 * 1000,
+    coucher: ctx => (ctx.now >= ctx.solar.sunset && ctx.now - ctx.solar.sunset < 5 * 60 * 1000)
+  };
+
+  async function tickInvocation() {
+    const ctx = await getCtx();
+    const tests = [
+      { k: 'lever', f: Rules.lever, tag: 'invoke:solaire:lever' },
+      { k: 'zenith', f: Rules.zenith, tag: 'invoke:solaire:zenith' },
+      { k: 'coucher', f: Rules.coucher, tag: 'invoke:solaire:coucher' }
+    ];
+    for (const t of tests) {
+      const windowKey = t.k + ':' + Math.floor(Date.now() / 300000);
+      const enabled = Pref.get('tgInv' + t.k.charAt(0).toUpperCase() + t.k.slice(1), true);
+      if (enabled && t.f(ctx) && !lastKeys.has(windowKey)) {
+        Bus.emit(t.tag, ctx);
+        lastKeys.add(windowKey);
+        log(`invocation:${t.k}`);
+      }
+    }
+    // Mise à jour affichage solaire
+    document.getElementById('solarTimes').textContent =
+      `Lever: ${ctx.solar.sunrise.toLocaleTimeString()} — Zénith: ${ctx.solar.solarNoon.toLocaleTimeString()} — Coucher: ${ctx.solar.sunset.toLocaleTimeString()}`;
+  }
+  setInterval(tickInvocation, 30000);
+  tickInvocation();
+  </script>
+  
           
