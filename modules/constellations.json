@@ -1,0 +1,7 @@
+[
+  { "name": "Orion", "ra": 5.5, "dec": -5.0 },
+  { "name": "Cassiopeia", "ra": 1.0, "dec": 60.0 },
+  { "name": "Lyra", "ra": 18.5, "dec": 38.0 },
+  { "name": "Cygnus", "ra": 20.5, "dec": 42.0 },
+  { "name": "Scorpius", "ra": 16.5, "dec": -30.0 }
+]
