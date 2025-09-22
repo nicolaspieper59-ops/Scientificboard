@@ -5,52 +5,198 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cockpit Cosmique</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icon.png">
   <style>
-    html, body { margin: 0; background: radial-gradient(circle at center, #000011, #000000); overflow: hidden; }
-    canvas { display: block; }
-    #audioControl { position: fixed; bottom: 1em; left: 1em; z-index: 10; }
+    html, body {
+      margin: 0;
+      background: radial-gradient(ellipse at center, #000 0%, #111 100%);
+      color: white;
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+    canvas { position: absolute; top: 0; left: 0; z-index: 0; }
+    #panel { position: fixed; top: 1em; right: 1em; background: rgba(0,0,0,0.7); padding: 1em; border-radius: 8px; z-index: 100; }
+    button { margin: 0.2em; }
   </style>
 </head>
 <body>
-  <canvas id="cosmicCanvas"></canvas>
-  <audio id="ambiance" src="audio/ambiance.mp3" loop autoplay></audio>
-  <audio id="schumann" src="audio/schumann.mp3" loop></audio>
-  <button id="audioControl">🔊</button>
+<canvas id="sky"></canvas>
+<div id="panel">
+  <button onclick="toggleModule('vitesse')">Vitesse</button>
+  <button onclick="toggleModule('respiration')">Respiration</button>
+  <button onclick="toggleModule('planètes')">Planètes</button>
+  <button onclick="toggleModule('journal')">Journal</button>
+  <button onclick="toggleModule('artistique')">Artistique</button>
+  <button onclick="toggleModule('méditation')">Méditation</button>
+</div>
+<script>
+let modules = { vitesse: true, respiration: false, planètes: true, journal: true, artistique: false, méditation: false };
+function toggleModule(name) {
+  modules[name] = !modules[name];
+  document.getElementById(name + 'Module')?.classList.toggle('hidden', !modules[name]);
+}
 
-  <script type="module">
-    import { drawConstellations } from './modules/constellations.json' assert { type: 'json' };
-    import { galacticOrientation } from './modules/galactic-orientation.json' assert { type: 'json' };
+// Vitesse
+let vitesseMax = 0, distanceTotale = 0, startTime = Date.now();
+navigator.geolocation.watchPosition(pos => {
+  const v = pos.coords.speed || 0;
+  vitesseMax = Math.max(vitesseMax, v);
+  distanceTotale += v * 1;
+  document.getElementById('vitesseData').innerText =
+    `Vitesse: ${v.toFixed(2)} m/s\nMax: ${vitesseMax.toFixed(2)}\nDistance: ${distanceTotale.toFixed(1)} m`;
+}, null, { enableHighAccuracy: true });
 
-    const canvas = document.getElementById('cosmicCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = innerWidth;
-    canvas.height = innerHeight;
+// Respiration cosmique
+setInterval(() => {
+  if (!modules.respiration) return;
+  const halo = document.getElementById('haloRespiration');
+  halo.style.transform = `scale(${1 + 0.2 * Math.sin(Date.now()/1000)})`;
+}, 100);
+</script>
+<div id="vitesseModule">
+  <pre id="vitesseData"></pre>
+</div>
+<div id="respirationModule" class="hidden">
+  <div id="haloRespiration" style="width:200px;height:200px;border-radius:50%;background:#0ff;opacity:0.3;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(1);transition:transform 1s;"></div>
+</div>
+<div id="planètesModule">
+  <canvas id="orbites" width="800" height="600" style="position:absolute;top:0;left:0;z-index:1;"></canvas>
+</div>
+<script>
+const ctx = document.getElementById('orbites').getContext('2d');
+function dessineOrbites() {
+  ctx.clearRect(0, 0, 800, 600);
+  const t = Date.now()/100000;
+  const planètes = [
+    { nom: 'Mercure', r: 50, couleur: '#aaa' },
+    { nom: 'Vénus', r: 80, couleur: '#f5c' },
+    { nom: 'Mars', r: 110, couleur: '#f33' },
+    { nom: 'Jupiter', r: 150, couleur: '#fc3' },
+    { nom: 'Saturne', r: 190, couleur: '#cc9' }
+  ];
+  planètes.forEach(p => {
+    const x = 400 + p.r * Math.cos(t/p.r);
+    const y = 300 + p.r * Math.sin(t/p.r);
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, 2*Math.PI);
+    ctx.fillStyle = p.couleur;
+    ctx.fill();
+    ctx.fillText(p.nom, x+8, y);
+  });
+}
+setInterval(() => { if (modules.planètes) dessineOrbites(); }, 100);
+</script>
+<div id="journalModule" class="hidden">
+  <button onclick="exportJournal()">📤 Exporter Journal</button>
+</div>
+<script>
+let journal = [];
+function logGrandeur(nom, valeur) {
+  journal.push({ nom, valeur, timestamp: Date.now() });
+}
+function exportJournal() {
+  const blob = new Blob([JSON.stringify(journal, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'journal-cosmique.json';
+  a.click();
+}
+setInterval(() => {
+  if (!modules.journal) return;
+  logGrandeur('vitesse', vitesseMax);
+  logGrandeur('distance', distanceTotale);
+}, 5000);
+</script>
+<div id="artistiqueModule" class="hidden">
+  <canvas id="artCanvas" width="800" height="600" style="position:absolute;top:0;left:0;z-index:2;"></canvas>
+</div>
+<script>
+const artCtx = document.getElementById('artCanvas').getContext('2d');
+function dessineArt() {
+  if (!modules.artistique) return;
+  const lumière = Math.random()*1000;
+  const pression = 1000 + Math.random()*50;
+  const uv = Math.random()*10;
+  artCtx.fillStyle = `rgba(${uv*25},${pression%255},${lumière%255},0.2)`;
+  artCtx.beginPath();
+  artCtx.arc(Math.random()*800, Math.random()*600, uv*5, 0, 2*Math.PI);
+  artCtx.fill();
+}
+setInterval(dessineArt, 300);
+</script>
+<div id="méditationModule" class="hidden">
+  <button onclick="startMeditation()">🧘‍♂️ Démarrer</button>
+</div>
+<script>
+let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function startMeditation() {
+  const left = audioCtx.createOscillator();
+  const right = audioCtx.createOscillator();
+  const splitter = audioCtx.createChannelMerger(2);
+  left.frequency.value = 440;
+  right.frequency.value = 447.83; // 7.83 Hz binaural beat
+  left.connect(splitter, 0, 0);
+  right.connect(splitter, 0, 1);
+  splitter.connect(audioCtx.destination);
+  left.start();
+  right.start();
+}
+</script>
+<script>
+// Capteurs physiques
+if ('AmbientLightSensor' in window) {
+  const light = new AmbientLightSensor();
+  light.onreading = () => {
+    document.body.style.background = `radial-gradient(circle, rgba(255,255,255,${light.illuminance/10000}) 0%, #000 100%)`;
+    logGrandeur('lumière', light.illuminance);
+  };
+  light.start();
+}
+if ('Magnetometer' in window) {
+  const mag = new Magnetometer();
+  mag.onreading = () => {
+    const champ = Math.sqrt(mag.x**2 + mag.y**2 + mag.z**2);
+    logGrandeur('champ magnétique', champ);
+  };
+  mag.start();
+}
+if ('DeviceOrientationEvent' in window) {
+  window.addEventListener('deviceorientation', e => {
+    const azimut = e.alpha?.toFixed(1);
+    const inclinaison = e.beta?.toFixed(1);
+    logGrandeur('orientation', `${azimut}° / ${inclinaison}°`);
+  });
+}
 
-    function renderSky() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawConstellations.forEach(({ name, ra, dec }) => {
-        const x = canvas.width * (ra / 24);
-        const y = canvas.height * (1 - dec / 90);
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(x, y, 2, 0, 2 * Math.PI);
-        ctx.fill();
-      });
-      // Orientation galactique (symbolique)
-      ctx.strokeStyle = '#00ffff88';
-      ctx.beginPath();
-      ctx.moveTo(canvas.width / 2, canvas.height / 2);
-      ctx.lineTo(canvas.width / 2 + galacticOrientation.x, canvas.height / 2 + galacticOrientation.y);
-      ctx.stroke();
-    }
+// Heure solaire locale
+function heureSolaire() {
+  const now = new Date();
+  const offset = (2 * Math.PI * (now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds()) / 86400);
+  return offset.toFixed(2) + ' rad';
+}
 
-    renderSky();
+// Phase lunaire simplifiée
+function phaseLunaire() {
+  const now = new Date();
+  const synodique = 29.53058867;
+  const ref = new Date('2025-09-14'); // dernière nouvelle lune
+  const diff = (now - ref) / (1000 * 60 * 60 * 24);
+  const phase = (diff % synodique) / synodique;
+  return (phase*100).toFixed(1) + '%';
+}
 
-    document.getElementById('audioControl').onclick = () => {
-      const ambiance = document.getElementById('ambiance');
-      ambiance.paused ? ambiance.play() : ambiance.pause();
-    };
-  </script>
+// Marées (simplifiées)
+function hauteurMarée() {
+  const phase = parseFloat(phaseLunaire());
+  return (2 * Math.sin(phase * Math.PI / 50)).toFixed(2) + ' m';
+}
+
+// Vitesse lumière/son
+function pourcentagesVitesse(v) {
+  const son = (v / 343 * 100).toFixed(2);
+  const lumière = (v / 299792458 * 100).toExponential(2);
+  return `🌬️ ${son}% du son — 💡 ${lumière}% de la lumière`;
+}
+</script>
 </body>
 </html>
