@@ -2,13 +2,131 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cosmic Cockpit</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cockpit Cosmique</title>
+
+  <!-- Manifest PWA -->
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icon.png" type="image/png" />
+
+  <style>
+    body {
+      margin:0;
+      background: radial-gradient(circle at center, #000 0%, #111 100%);
+      color:#0ff;
+      font-family: system-ui, sans-serif;
+    }
+    header {
+      padding:0.5rem 1rem;
+      border-bottom:1px solid #333;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .badge {
+      border:1px solid #555;
+      border-radius:999px;
+      padding:0.2rem 0.5rem;
+      font-size:0.8rem;
+    }
+    #grid {
+      display:grid;
+      gap:0.75rem;
+      grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+      padding:1rem;
+    }
+    .card {
+      background:#0a0a0a;
+      border:1px solid #111;
+      border-radius:8px;
+      padding:0.75rem;
+    }
+    .card h3 {
+      margin-top:0;
+      font-size:1rem;
+      color:#9ff;
+    }
+    .row {
+      display:flex;
+      gap:0.5rem;
+      flex-wrap:wrap;
+    }
+    .toggle {
+      background:#012;
+      color:#9ff;
+      border:1px solid #024;
+      border-radius:8px;
+      padding:0.4rem 0.6rem;
+      cursor:pointer;
+    }
+    .toggle.active { background:#024; }
+    #log {
+      max-height:150px;
+      overflow:auto;
+      font-size:0.8rem;
+      background:#050;
+      padding:0.5rem;
+      border-radius:6px;
+    }
+    canvas {
+      display:block;
+      width:100%;
+      height:200px;
+      background:#020;
+      border:1px solid #033;
+      border-radius:8px;
+    }
+  </style>
 </head>
 <body>
-  <iframe src="interface.html" style="width:100vw; height:100vh; border:none;"></iframe>
-</body>
-</html>
+  <header>
+    <div>
+      <strong>🌌 Cockpit Cosmique</strong>
+      <span class="badge" id="cycleBadge">cycle: …</span>
+      <span class="badge" id="phaseBadge">lune: …</span>
+    </div>
+    <div class="row">
+      <button id="btnInstall" class="hidden">Installer</button>
+      <button id="btnExport">Exporter journal</button>
+    </div>
+  </header>
+
+  <main id="grid">
+    <!-- Modules internes -->
+    <section class="card"><h3>🌞 Heure solaire locale</h3><div id="solarTimes">—</div></section>
+    <section class="card"><h3>🧭 Boussole + niveau</h3><div id="compassVal">—</div></section>
+    <section class="card"><h3>🛰️ GPS + vitesse</h3><div id="gpsVal">—</div></section>
+    <section class="card"><h3>💡 Lumière ambiante</h3><div id="luxVal">—</div></section>
+    <section class="card"><h3>🔊 Son ambiant</h3><div id="audioLevel">—</div></section>
+    <section class="card"><h3>🧲 Champ magnétique</h3><div id="magVal">—</div></section>
+
+    <!-- Modules connectés -->
+    <section class="card"><h3>🌊 Marées</h3><div id="tideVal">—</div></section>
+    <section class="card"><h3>✨ Événements célestes</h3><div id="celesteVal">—</div></section>
+
+    <!-- Capteurs externes -->
+    <section class="card"><h3>🌞 UV</h3><div id="uvVal">—</div></section>
+    <section class="card"><h3>🌫️ CO₂</h3><div id="co2Val">—</div></section>
+    <section class="card"><h3>🧿 Résonance Schumann</h3><div id="schumannVal">—</div></section>
+
+    <!-- Artistiques -->
+    <section class="card"><h3>🎼 Ambiance sonore</h3><button id="btnAmbient">Activer</button></section>
+    <section class="card"><h3>🌀 Visualisation orbitale</h3><canvas id="canvasOrbit"></canvas></section>
+
+    <!-- Panneau interactif -->
+    <section class="card">
+      <h3>🎛️ Panneau cosmique</h3>
+      <div class="row">
+        <div class="toggle" id="tgInvLever">Invoc. lever</div>
+        <div class="toggle" id="tgInvZenith">Invoc. zénith</div>
+        <div class="toggle" id="tgInvCoucher">Invoc. coucher</div>
+        <div class="toggle" id="tgInvMaree">Invoc. marées</div>
+        <div class="toggle" id="tgInvCeleste">Invoc. céleste</div>
+        <div class="toggle" id="tgInvUV">Invoc. UV haut</div>
+        <div class="toggle" id="tgInvCO2">Invoc. CO₂ haut</div>
+      </div>
+    </section>
+
+    <!-- Journal -->
+    <section class="card"><h3>📈 Historique</h3><div id="log"></div></section>
+                                                           </main>
+          
